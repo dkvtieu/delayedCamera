@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Delayed Camera</string>
+    <string name="camera_button">Camera</string>
+    <string name="video_record_button">Video Record</string>
+</resources>
