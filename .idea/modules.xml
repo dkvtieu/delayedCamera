@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/DelayedCamera.iml" filepath="$PROJECT_DIR$/DelayedCamera.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/delayedCamera.iml" filepath="$PROJECT_DIR$/delayedCamera.iml" />
     </modules>
   </component>
 </project>
