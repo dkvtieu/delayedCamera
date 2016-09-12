@@ -3,15 +3,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-
     tools:context="com.davisontieu.delayedcamera.mainCamera">
 
     <TextureView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:id="@+id/mTextureView"
-        android:layout_alignBottom="@+id/cameraButton"
-        android:layout_alignStart="@+id/cameraButton" />
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true" />
 
     <Button
         style="?android:attr/buttonStyleSmall"

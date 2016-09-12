@@ -6,11 +6,12 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.TextureView;
@@ -18,18 +19,75 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-import junit.framework.Assert;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
 
 public class mainCamera extends AppCompatActivity {
 
     //Button cameraButton = (Button) findViewById(R.id.cameraButton);
     //Button videoRecordButton = (Button) findViewById(R.id.videoRecordButton);
-    private static int FULL_ROTATION = 360;
     private TextureView mTextureView;
     private CameraDevice mCameraDevice;
     private String mCameraId;
+    private Size mPreviewSize;
     private HandlerThread mBackgroundHandlerThread;
     private Handler mBackgroundHandler;
+    private static final int ROTATION_90 = 90;
+    private static final int ROTATION_270 = 270;
+    private static final int ROTATION_FULL = 360;
+
+    // Array of rotation values
+    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
+    static {
+        ORIENTATIONS.append(Surface.ROTATION_0, 0);
+        ORIENTATIONS.append(Surface.ROTATION_90, 90);
+        ORIENTATIONS.append(Surface.ROTATION_180, 180);
+        ORIENTATIONS.append(Surface.ROTATION_270, 270);
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main_camera);
+        mTextureView = (TextureView) findViewById(R.id.mTextureView);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        startBackgroundThread();
+
+        if(mTextureView.isAvailable()) {
+            setupCamera(mTextureView.getWidth(), mTextureView.getHeight());
+        } else {
+            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        closeCamera();
+        stopBackgroundThread();
+        super.onPause();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocas) {
+        super.onWindowFocusChanged(hasFocas);
+        View decorView = getWindow().getDecorView();
+        if(hasFocas) {
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        }
+    }
 
     private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
@@ -54,6 +112,7 @@ public class mainCamera extends AppCompatActivity {
         }
     };
 
+    // Camera listener method
     private CameraDevice.StateCallback mCameraDeviceStateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
@@ -85,22 +144,34 @@ public class mainCamera extends AppCompatActivity {
                     continue;
                 }
 
+                StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 int deviceOrientation = getWindowManager().getDefaultDisplay().getRotation();
                 int totalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
                 int widthRotated = width;
                 int heightRotated = height;
 
-                if(totalRotation == 90 || totalRotation == 270) {
+                // flips the dimensions in order to adjust for process of rotating screen + TextureView
+                if(totalRotation == ROTATION_90 || totalRotation == ROTATION_270) {
                     widthRotated = height;
                     heightRotated = width;
                 }
 
+                Size[] test = map.getOutputSizes(SurfaceTexture.class);
+
+                mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), widthRotated, heightRotated);
                 mCameraId = cameraId;
                 return;
 
             }
         } catch (CameraAccessException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void closeCamera() {
+        if(mCameraDevice != null) {
+            mCameraDevice.close();
+            mCameraDevice = null;
         }
     }
 
@@ -122,67 +193,37 @@ public class mainCamera extends AppCompatActivity {
 
     }
 
-    private void closeCamera() {
-        if(mCameraDevice != null) {
-            mCameraDevice.close();
-            mCameraDevice = null;
-        }
-    }
-
-    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static {
-        ORIENTATIONS.append(Surface.ROTATION_0, 0);
-        ORIENTATIONS.append(Surface.ROTATION_90, 90);
-        ORIENTATIONS.append(Surface.ROTATION_180, 180);
-        ORIENTATIONS.append(Surface.ROTATION_270, 270);
-    }
-
+    // Returns the difference between the sensor and device's rotation
     private static int sensorToDeviceRotation(CameraCharacteristics cameraCharacteristics,
                                               int deviceOrientation) {
         int sensorRotation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
         deviceOrientation = ORIENTATIONS.get(deviceOrientation);
-        return (sensorRotation + deviceOrientation + FULL_ROTATION) % FULL_ROTATION;
+        return (sensorRotation + deviceOrientation + ROTATION_FULL) % ROTATION_FULL;
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main_camera);
-
-        mTextureView = (TextureView) findViewById(R.id.mTextureView);
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        startBackgroundThread();
-
-        if(!mTextureView.isAvailable()) {
-            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
-        } else {
-            setupCamera(mTextureView.getWidth(), mTextureView.getHeight());
+    // Comparator class for comparing different sizes of camera feeds
+    private static class compareSizeByArea implements Comparator<Size> {
+        @Override
+        public int compare(Size o1, Size o2) {
+            return Long.signum((long) o1.getWidth() * o1.getHeight() /
+                    (long) o2.getWidth() * o2.getHeight());
         }
     }
 
-    @Override
-    protected void onPause() {
-        closeCamera();
-        stopBackgroundThread();
-        super.onPause();
-    }
+    private static Size chooseOptimalSize (Size[] sizeList, int width, int height) {
+        List<Size> options  = new ArrayList<Size>();
+        for (Size option : sizeList) {
+            if(option.getHeight() == option.getWidth() * height/ width &&
+                    option.getHeight() >= height && option.getWidth() >= width) {
+                options.add(option);
+            }
+        }
 
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        View decorView = getWindow().getDecorView();
-        if (hasFocus) {
-            decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);}
+        if(options.size() > 0) {
+            return Collections.min(options, new compareSizeByArea());
+        } else {
+            return options.get(0);
+        }
+
     }
 }
