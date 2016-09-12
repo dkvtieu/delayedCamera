@@ -156,8 +156,6 @@ public class mainCamera extends AppCompatActivity {
                     heightRotated = width;
                 }
 
-                Size[] test = map.getOutputSizes(SurfaceTexture.class);
-
                 mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class), widthRotated, heightRotated);
                 mCameraId = cameraId;
                 return;
