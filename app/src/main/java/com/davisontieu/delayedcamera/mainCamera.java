@@ -52,7 +52,7 @@ public class mainCamera extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_camera);
-        mTextureView = (TextureView) findViewById(R.id.mTextureView);
+        mTextureView = (TextureView) findViewById(R.id.textureView);
     }
 
     @Override
