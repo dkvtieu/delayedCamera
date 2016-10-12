@@ -1,4 +1,4 @@
-package com.davisontieu.delayedcamera;
+package mobapptut.com.camera2videoimage;
 
 import org.junit.Test;
 
